@@ -10,7 +10,7 @@ export const ARTICLE_COLUMNS = [
   'pub_date',
   'fetched_at',
   'status',
-  'mode',
+  'type',
   'language',
   'region',
   'raw_url',
@@ -30,7 +30,7 @@ export type Article = {
   pub_date: string | null;
   fetched_at: string | null;
   status: string | null;
-  mode: string | null;
+  type: string | null;
   language: string | null;
   region: string | null;
   raw_url: string | null;
@@ -46,7 +46,7 @@ export type ArticleFilters = {
   search: string;
   status: string;
   do_status: string;
-  mode: string;
+  type: string;
   language: string;
   region: string;
   dateFrom: string;

@@ -13,7 +13,7 @@ const fields: [keyof Article, string][] = [
   ['pub_date', 'Publication date'],
   ['fetched_at', 'Fetched at'],
   ['status', 'Pipeline status'],
-  ['mode', 'Mode'],
+  ['type', 'Type'],
   ['language', 'Language'],
   ['region', 'Region'],
   ['raw_url', 'Original URL'],

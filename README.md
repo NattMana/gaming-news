@@ -68,7 +68,7 @@ ai_short_summary_2_sentences, do_status, preverdict
 
 API ส่งคืน `preverdict` ในข้อมูล article และหน้า View แสดงค่านี้เป็นฟิลด์ Pre-verdict; ฟิลด์นี้อ่านจากฐานข้อมูลอย่างเดียวและไม่ได้ถูกแก้ไขโดยแอป
 
-ตรวจ schema ของฐานข้อมูลที่มีอยู่ก่อนเชื่อม:
+ตัวกรองในหน้าเว็บและ query parameter ใช้ชื่อ `type` เพื่อให้สอดคล้องกับ UI แต่ provider จะ map ไปยังคอลัมน์ `mode` ใน PostgreSQL และส่งค่ากลับเป็น `type` ให้หน้าเว็บ ดังนั้น schema ต้องมี `mode` (ไม่จำเป็นต้องมีคอลัมน์ `type`) ตรวจ schema ของฐานข้อมูลที่มีอยู่ก่อนเชื่อม:
 
 ```sql
 SELECT column_name, data_type, is_nullable
@@ -155,7 +155,7 @@ ORDER BY ordinal_position;
 | Method | Path | หน้าที่ |
 | --- | --- | --- |
 | `GET` | `/api/articles` | ค้นหา/กรอง/เรียง/แบ่งหน้ารายการข่าว |
-| `GET` | `/api/articles/filters` | ค่าตัวเลือกที่พบในตาราง เช่น `status`, `mode`, `language`, `region`, `do_status` |
+| `GET` | `/api/articles/filters` | ค่าตัวเลือกที่พบในตาราง เช่น `status`, `type`, `language`, `region`, `do_status` |
 | `GET` | `/api/articles/{id}` | อ่านรายละเอียดข่าวหนึ่งรายการ |
 | `PATCH` | `/api/articles/{id}` | เปลี่ยน `do_status` ของข่าว; body `{"do_status":"undone"}` (รองรับ `done`, `skip` ด้วย) |
 | `GET` | `/api/config` | ค่า config ที่ client ใช้ เช่น `{"timeZone":"Asia/Bangkok"}` |
@@ -167,7 +167,7 @@ ORDER BY ordinal_position;
 | `page` | เลขหน้า เริ่มที่ 1; default `1` |
 | `pageSize` | `10`, `25`, `50`, `100`; default `25` |
 | `search` | ค้นใน `title`, `ai_title`, `canonical_url`, `raw_url` (สูงสุด 200 ตัวอักษร) |
-| `status`, `do_status`, `mode`, `language`, `region` | กรองค่าตรงกัน; ใช้ `__null` เพื่อกรอง NULL/ค่าว่าง และ `do_status=__other` เพื่อกรองสถานะรีวิวที่ไม่ใช่ `undone`, `done`, `skip` |
+| `status`, `do_status`, `type`, `language`, `region` | กรองค่าตรงกัน; ใช้ `__null` เพื่อกรอง NULL/ค่าว่าง และ `do_status=__other` เพื่อกรองสถานะรีวิวที่ไม่ใช่ `undone`, `done`, `skip` |
 | `dateFrom`, `dateTo` | วันที่ `YYYY-MM-DD`; รวมวันเริ่มและวันสิ้นสุด |
 | `sortBy` | `pub_date`, `id`, `status`, `do_status`, `title`; `title` เรียง `COALESCE(ai_title,title)` |
 | `sortOrder` | `asc` หรือ `desc`; default `desc` |

@@ -15,7 +15,7 @@ function test(a: Article, f: ArticleFilters) {
       [a.title, a.ai_title, a.canonical_url, a.raw_url].some((x) =>
         x?.toLowerCase().includes(q),
       )) &&
-    (['status', 'mode', 'language', 'region'] as const).every(
+    (['status', 'type', 'language', 'region'] as const).every(
       (k) => !f[k] || (f[k] === '__null' ? a[k] === null || a[k] === '' : a[k] === f[k]),
     ) &&
     (!f.do_status ||
@@ -59,7 +59,7 @@ class MockProvider implements ArticleProvider {
   }
   async filters() {
     return Object.fromEntries(
-      ['status', 'mode', 'language', 'region']
+      ['status', 'type', 'language', 'region']
         .map((k) => {
           const vals = mockArticles.map((a) => a[k as keyof Article]);
           return [
@@ -117,7 +117,8 @@ class PostgresProvider implements ArticleProvider {
     for (const [key, col] of [
       ['status', 'status'],
       ['do_status', 'do_status'],
-      ['mode', 'mode'],
+      // The UI/API call this filter "type"; the database column is named "mode".
+      ['type', 'mode'],
       ['language', 'language'],
       ['region', 'region'],
     ] as const) {
@@ -162,15 +163,16 @@ class PostgresProvider implements ArticleProvider {
   async filters() {
     const pool = getPool();
     const entries = await Promise.all(
-      (['status', 'mode', 'language', 'region', 'do_status'] as const).map(async (k) => {
+      (['status', 'type', 'language', 'region', 'do_status'] as const).map(async (k) => {
+        const col = k === 'type' ? 'mode' : k;
         const vals = (
           await pool.query(
-            `SELECT DISTINCT ${k} AS v FROM articles WHERE ${k} IS NOT NULL AND ${k} <> '' ORDER BY ${k}`,
+            `SELECT DISTINCT ${col} AS v FROM articles WHERE ${col} IS NOT NULL AND ${col} <> '' ORDER BY ${col}`,
           )
         ).rows.map((r) => r.v as string);
         const hasNull = (
           await pool.query(
-            `SELECT EXISTS(SELECT 1 FROM articles WHERE ${k} IS NULL OR ${k} = '') AS yes`,
+            `SELECT EXISTS(SELECT 1 FROM articles WHERE ${col} IS NULL OR ${col} = '') AS yes`,
           )
         ).rows[0]?.yes;
         if (k === 'do_status')
@@ -202,7 +204,7 @@ class PostgresProvider implements ArticleProvider {
   }
 }
 const ARTICLE_SQL =
-  'id,url_hash,canonical_url,title,content,creator,pub_date,fetched_at,status,mode,language,region,raw_url,ai_title,ai_full_summary,ai_short_summary_2_sentences,do_status,preverdict';
+  'id,url_hash,canonical_url,title,content,creator,pub_date,fetched_at,status,mode AS type,language,region,raw_url,ai_title,ai_full_summary,ai_short_summary_2_sentences,do_status,preverdict';
 let provider: ArticleProvider | undefined;
 export function articleProvider(): ArticleProvider {
   if (!provider) provider = dataSource() === 'mock' ? new MockProvider() : new PostgresProvider();

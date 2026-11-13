@@ -8,7 +8,7 @@ type Filters = {
   search: string;
   status: string;
   do_status: string;
-  mode: string;
+  type: string;
   language: string;
   region: string;
   dateFrom: string;
@@ -22,7 +22,7 @@ const initial: Filters = {
   search: '',
   status: '',
   do_status: '',
-  mode: '',
+  type: '',
   language: '',
   region: '',
   dateFrom: '',
@@ -169,7 +169,7 @@ export default function ArticlesPage() {
       search: p.get('search') || '',
       status: p.get('status') || '',
       do_status: p.get('do_status') || '',
-      mode: p.get('mode') || '',
+      type: p.get('type') || '',
       language: p.get('language') || '',
       region: p.get('region') || '',
       dateFrom: p.get('dateFrom') || '',
@@ -209,7 +209,7 @@ export default function ArticlesPage() {
         !f.search &&
         !f.status &&
         !f.do_status &&
-        !f.mode &&
+        !f.type &&
         !f.language &&
         !f.region &&
         !f.dateFrom &&
@@ -297,7 +297,7 @@ export default function ArticlesPage() {
               [
                 ['status', 'Status'],
                 ['do_status', 'Review'],
-                ['mode', 'Mode'],
+                ['type', 'Type'],
                 ['language', 'Language'],
                 ['region', 'Region'],
               ] as const

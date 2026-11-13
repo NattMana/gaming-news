@@ -12,7 +12,7 @@ const schema = z.object({
   search: z.string().max(200).default(''),
   status: z.string().max(100).default(''),
   do_status: z.string().max(100).default(''),
-  mode: z.string().max(100).default(''),
+  type: z.string().max(100).default(''),
   language: z.string().max(100).default(''),
   region: z.string().max(100).default(''),
   dateFrom: z
