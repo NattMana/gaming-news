@@ -22,7 +22,7 @@ export default function GraphicEditor({ article, back }: { article: Article; bac
       <iframe
         className="graphic-frame"
         title="Gaming news graphic editor"
-        src={`/fb/index.html?${query.toString()}`}
+        src={`/news/fb/index.html?${query.toString()}`}
       />
     </main>
   );
