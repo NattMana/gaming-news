@@ -1,22 +1,39 @@
-# Merge this service into the existing server compose.yaml so dashboard shares
-# its default network with postgres. Keep existing services and volumes intact.
+
 services:
   dashboard:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ${DASHBOARD_CONTAINER_NAME:-gaming-dashboard}
     restart: unless-stopped
-    env_file: .env
+    env_file:
+      - .env
     environment:
-      NODE_ENV: production
-      DATA_SOURCE: postgres
-      PORT: "3000"
-      HOSTNAME: 0.0.0.0
+      NODE_ENV: ${NODE_ENV:-production}
+      DATA_SOURCE: ${DATA_SOURCE:-postgres}
+      DATABASE_URL: ${DATABASE_URL:?Set DATABASE_URL in .env}
+      DB_SSL: ${DB_SSL:-false}
+      APP_TIME_ZONE: ${APP_TIME_ZONE:-Asia/Bangkok}
+      AUTH_ENABLED: ${AUTH_ENABLED:-true}
+      AUTH_USER: ${AUTH_USER:?Set AUTH_USER in .env}
+      AUTH_PASSWORD: ${AUTH_PASSWORD:?Set AUTH_PASSWORD in .env}
+      PORT: ${PORT:-3000}
+      HOSTNAME: ${HOSTNAME:-0.0.0.0}
     expose:
-      - "3000"
+      - "${PORT:-3000}"
     networks:
-      - default
+      - dashboard_network
     labels:
-      - traefik.enable=true
-      - traefik.http.routers.dashboard.rule=Host(`${DASHBOARD_HOST}`)
-      - traefik.http.routers.dashboard.entrypoints=websecure
-      - traefik.http.routers.dashboard.tls=true
-      - traefik.http.services.dashboard.loadbalancer.server.port=3000
+      - "traefik.enable=${TRAEFIK_ENABLED:-true}"
+      - "traefik.docker.network=${DOCKER_NETWORK_NAME:-n8n-compose_default}"
+      - "traefik.http.routers.dashboard.rule=Host(`${DASHBOARD_HOST:?Set DASHBOARD_HOST in .env}`) && PathPrefix(`${DASHBOARD_BASE_PATH:-/news}`)"
+      - "traefik.http.routers.dashboard.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}"
+      - "traefik.http.routers.dashboard.tls=${TRAEFIK_TLS:-true}"
+      - "traefik.http.routers.dashboard.tls.certresolver=${TRAEFIK_CERTRESOLVER:-mytlschallenge}"
+      - "traefik.http.routers.dashboard.priority=${TRAEFIK_PRIORITY:-100}"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=${PORT:-3000}"
+
+networks:
+  dashboard_network:
+    name: ${DOCKER_NETWORK_NAME:-n8n-compose_default}
+    external: true
