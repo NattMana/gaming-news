@@ -30,10 +30,16 @@
           <label class="upload"
             >＋ อัปโหลดภาพ<input id="image" type="file" accept="image/*" /></label
           ><label class="field"
-            >ซูมภาพ<input id="zoom" type="range" min="100" max="180" value="100" /></label
+            >ซูมภาพ<input id="zoom" type="range" min="100" max="250" value="100" />
+            <output id="zoomValue" class="range-value">100%</output></label
           ><label class="field"
-            >ตำแหน่งแนวตั้ง<input id="position" type="range" min="0" max="100" value="50"
-          /></label>
+            >เลื่อนภาพแนวนอน<input id="positionX" type="range" min="0" max="100" value="50" />
+            <output id="positionXValue" class="range-value">50%</output></label
+          ><label class="field"
+            >เลื่อนภาพแนวตั้ง<input id="position" type="range" min="0" max="100" value="50" />
+            <output id="positionValue" class="range-value">50%</output></label
+          ><button id="resetImage" class="plain" type="button">จัดตำแหน่งภาพใหม่</button>
+          <p class="hint image-hint">ลากภาพบนตัวอย่างเพื่อจัดตำแหน่ง หรือใช้แถบเลื่อน</p>
         </details>
         <details open>
           <summary>พาดหัว</summary>

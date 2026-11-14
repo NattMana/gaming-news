@@ -237,6 +237,16 @@ summary:after {
   width: 100%;
   height: 100%;
 }
+.graphic > canvas.crop-draggable {
+  cursor: grab;
+  touch-action: none;
+}
+.graphic > canvas.crop-dragging {
+  cursor: grabbing;
+}
+.image-hint {
+  margin: 0;
+}
 .photo {
   position: absolute;
   inset: 0 0 auto;

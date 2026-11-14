@@ -1,11 +1,15 @@
 const $ = (id) => document.getElementById(id),
-  state = { image: '', logo: '', iw: 0, ih: 0, zoom: 100, pos: 50 };
+  state = { image: '', logo: '', iw: 0, ih: 0, zoom: 100, posX: 50, pos: 50 };
 const params = new URLSearchParams(location.search),
   articleId = params.get('articleId'),
   draftKey = articleId ? `graphicDraft:${articleId}` : 'graphicDraft';
 function update() {
   const val = (id) => $(id).value;
   $('opacityValue').textContent = `${val('opacity')}%`;
+  $('zoomValue').textContent = `${val('zoom')}%`;
+  $('positionXValue').textContent = `${val('positionX')}%`;
+  $('positionValue').textContent = `${val('position')}%`;
+  $('graphicPreview').classList.toggle('crop-draggable', !!state.image);
   $('graphicPreview').setAttribute(
     'aria-label',
     [val('headline'), val('subtitle'), val('watermark')].filter(Boolean).join('. '),
@@ -83,10 +87,67 @@ $('zoom').oninput = (e) => {
   state.zoom = Number(e.target.value);
   update();
 };
+$('positionX').oninput = (e) => {
+  state.posX = Number(e.target.value);
+  update();
+};
 $('position').oninput = (e) => {
   state.pos = Number(e.target.value);
   update();
 };
+$('resetImage').onclick = () => {
+  $('zoom').value = '100';
+  $('positionX').value = '50';
+  $('position').value = '50';
+  state.zoom = 100;
+  state.posX = 50;
+  state.pos = 50;
+  update();
+};
+$('graphicPreview').addEventListener('pointerdown', (event) => {
+  if (!state.image) return;
+  const canvas = $('graphicPreview');
+  const bounds = canvas.getBoundingClientRect();
+  const y = ((event.clientY - bounds.top) / bounds.height) * 788;
+  if (y > 520) return;
+  event.preventDefault();
+  canvas.setPointerCapture(event.pointerId);
+  canvas.classList.add('crop-dragging');
+  canvas.dataset.dragX = String(event.clientX);
+  canvas.dataset.dragY = String(event.clientY);
+  canvas.dataset.startPosX = String(Number($('positionX').value));
+  canvas.dataset.startPosY = String(Number($('position').value));
+});
+$('graphicPreview').addEventListener('pointermove', (event) => {
+  const canvas = $('graphicPreview');
+  if (!canvas.hasPointerCapture(event.pointerId)) return;
+  const bounds = canvas.getBoundingClientRect();
+  const image = getImagePlacement();
+  const deltaX = ((event.clientX - Number(canvas.dataset.dragX)) * 940) / bounds.width;
+  const deltaY = ((event.clientY - Number(canvas.dataset.dragY)) * 788) / bounds.height;
+  const horizontalRange = Math.min(0, 940 - image.width);
+  const verticalRange = Math.min(0, 520 - image.height);
+  const startX = Number(canvas.dataset.startPosX);
+  const startY = Number(canvas.dataset.startPosY);
+  const posX = horizontalRange
+    ? Math.max(0, Math.min(100, startX + (deltaX * 100) / horizontalRange))
+    : startX;
+  const posY = verticalRange
+    ? Math.max(0, Math.min(100, startY + (deltaY * 100) / verticalRange))
+    : startY;
+  $('positionX').value = String(posX);
+  $('position').value = String(posY);
+  state.posX = posX;
+  state.pos = posY;
+  update();
+});
+const finishImageDrag = (event) => {
+  const canvas = $('graphicPreview');
+  if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+  canvas.classList.remove('crop-dragging');
+};
+$('graphicPreview').addEventListener('pointerup', finishImageDrag);
+$('graphicPreview').addEventListener('pointercancel', finishImageDrag);
 $('clear').onclick = () => {
   state.image = '';
   state.logo = '';
@@ -128,6 +189,19 @@ function loadGraphicImage(src) {
     image.src = src;
   });
 }
+function getImagePlacement() {
+  const iw = state.iw || 940;
+  const ih = state.ih || 520;
+  const scale = Math.max(940 / iw, 520 / ih) * (Number($('zoom').value) / 100);
+  const width = iw * scale;
+  const height = ih * scale;
+  return {
+    x: ((940 - width) * Number($('positionX').value)) / 100,
+    y: ((520 - height) * Number($('position').value)) / 100,
+    width,
+    height,
+  };
+}
 async function drawGraphicCanvas() {
   await document.fonts.ready;
   const canvas = document.createElement('canvas');
@@ -141,10 +215,7 @@ async function drawGraphicCanvas() {
 
   if (state.image) {
     const photo = await loadGraphicImage(state.image);
-    const width = (940 * Number($('zoom').value)) / 100;
-    const height = (width * photo.naturalHeight) / photo.naturalWidth;
-    const x = (940 - width) / 2;
-    const y = ((520 - height) * Number($('position').value)) / 100;
+    const { x, y, width, height } = getImagePlacement();
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, 940, 520);
@@ -293,10 +364,7 @@ function svgSource() {
           >${esc(l)}</text>`,
       )
       .join('');
-  let iw = (940 * Number($('zoom').value)) / 100,
-    ih = state.iw ? (iw * state.ih) / state.iw : 520,
-    ix = (940 - iw) / 2,
-    iy = ((520 - ih) * Number($('position').value)) / 100;
+  const { x: ix, y: iy, width: iw, height: ih } = getImagePlacement();
   let image = state.image
     ? `<defs>
         <clipPath id="photoClip">
@@ -558,10 +626,7 @@ $('pptx').onclick = async () => {
     pctx.fillRect(0, 0, 940, 520);
     if (state.image) {
       const photo = await loadGraphicImage(state.image);
-      const width = (940 * Number($('zoom').value)) / 100;
-      const height = (width * photo.naturalHeight) / photo.naturalWidth;
-      const x = (940 - width) / 2;
-      const y = ((520 - height) * Number($('position').value)) / 100;
+      const { x, y, width, height } = getImagePlacement();
       pctx.save();
       pctx.beginPath();
       pctx.rect(0, 0, 940, 520);
@@ -695,6 +760,10 @@ try {
       localStorage.setItem(draftKey, JSON.stringify(d));
     }
     Object.assign(state, d);
+    if (state.posX == null) state.posX = 50;
+    $('zoom').value = String(state.zoom || 100);
+    $('positionX').value = String(state.posX);
+    $('position').value = String(state.pos ?? 50);
     for (let [k, v] of Object.entries(d.fields || {})) if ($(k)) $(k).value = v;
     if (state.image) {
       let im = new Image();
