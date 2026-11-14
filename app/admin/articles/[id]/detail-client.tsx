@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { Article } from '@/lib/types';
+const API_BASE = '/news';
 const fields: [keyof Article, string][] = [
   ['id', 'ID'],
   ['url_hash', 'URL hash'],
@@ -34,7 +35,7 @@ function Value({ field, value, zone }: { field: keyof Article; value: unknown; z
             {value} ↗
           </a>
         );
-    } catch {}
+    } catch { }
   }
   if ((field === 'pub_date' || field === 'fetched_at') && typeof value === 'string') {
     const d = new Date(value);
@@ -66,12 +67,12 @@ export default function ArticleDetail({
     [zone, setZone] = useState('Asia/Bangkok');
   const back = search.toString() ? `/admin/articles?${search.toString()}` : '/admin/articles';
   useEffect(() => {
-    fetch('/api/config')
+    fetch(`${API_BASE}/api/config`)
       .then((r) => r.json())
       .then((c) => {
         if (c.timeZone) setZone(c.timeZone);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
   async function update(v: string) {
     if (!article) return;

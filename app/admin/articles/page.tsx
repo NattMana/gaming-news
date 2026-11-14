@@ -30,6 +30,7 @@ const initial: Filters = {
   sortBy: 'pub_date',
   sortOrder: 'desc',
 };
+const API_BASE = '/news';
 const FRESHNESS = {
   justNowMs: 60_000,
   veryRecentMs: 3_600_000,
@@ -178,12 +179,12 @@ export default function ArticlesPage() {
       sortOrder: p.get('sortOrder') === 'asc' ? 'asc' : 'desc',
     }));
     setNow(Date.now());
-    fetch('/api/config')
+    fetch(`${API_BASE}/api/config`)
       .then((r) => r.json())
       .then((c) => {
         if (c.timeZone) setZone(c.timeZone);
       })
-      .catch(() => {});
+      .catch(() => { });
     const t = window.setInterval(() => setNow(Date.now()), 60000);
     const listen = (e: Event) => {
       setToast((e as CustomEvent).detail);
@@ -205,17 +206,17 @@ export default function ArticlesPage() {
       const u = new URL(location.href);
       u.search =
         j.page === 1 &&
-        j.pageSize === 25 &&
-        !f.search &&
-        !f.status &&
-        !f.do_status &&
-        !f.type &&
-        !f.language &&
-        !f.region &&
-        !f.dateFrom &&
-        !f.dateTo &&
-        f.sortBy === 'pub_date' &&
-        f.sortOrder === 'desc'
+          j.pageSize === 25 &&
+          !f.search &&
+          !f.status &&
+          !f.do_status &&
+          !f.type &&
+          !f.language &&
+          !f.region &&
+          !f.dateFrom &&
+          !f.dateTo &&
+          f.sortBy === 'pub_date' &&
+          f.sortOrder === 'desc'
           ? ''
           : `?${qs(f)}`;
       history.replaceState(null, '', u.toString());
@@ -229,7 +230,7 @@ export default function ArticlesPage() {
     return () => window.clearTimeout(t);
   }, [filters, load]);
   useEffect(() => {
-    fetch('/api/articles/filters', { cache: 'no-store' })
+    fetch(`${API_BASE}/api/articles/filters`, { cache: 'no-store' })
       .then(async (r) => {
         if (!r.ok) throw new Error();
         setOptions(await r.json());
