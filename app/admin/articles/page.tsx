@@ -30,7 +30,8 @@ const initial: Filters = {
   sortBy: 'pub_date',
   sortOrder: 'desc',
 };
-const API_BASE = '/news';
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const API_BASE = BASE_PATH;
 const FRESHNESS = {
   justNowMs: 60_000,
   veryRecentMs: 3_600_000,

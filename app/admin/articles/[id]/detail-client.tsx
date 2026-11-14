@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { Article } from '@/lib/types';
-const API_BASE = '/news';
+const API_BASE = process.env.NEXT_PUBLIC_BASE_PATH || '';
 const fields: [keyof Article, string][] = [
   ['id', 'ID'],
   ['url_hash', 'URL hash'],

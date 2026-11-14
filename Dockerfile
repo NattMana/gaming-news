@@ -6,6 +6,7 @@ FROM node:22-alpine AS builder
 WORKDIR /app
 ARG DASHBOARD_BASE_PATH=/news
 ENV DASHBOARD_BASE_PATH=${DASHBOARD_BASE_PATH}
+ENV NEXT_PUBLIC_BASE_PATH=${DASHBOARD_BASE_PATH}
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

@@ -50,7 +50,7 @@ Browser → Next.js UI → /api/* → ArticleProvider
    npm run dev
    ```
 
-4. เปิด `http://localhost:3000/admin/articles` (ถ้าพอร์ต 3000 ถูกใช้ Next.js จะแสดงพอร์ตอื่นใน terminal)
+4. เปิด `http://localhost:3000/admin/articles` (ถ้าพอร์ต 3000 ถูกใช้ Next.js จะแสดงพอร์ตอื่นใน terminal) โหมด dev ใช้ path ปกติ ส่วน production ใช้ prefix จาก `DASHBOARD_BASE_PATH` เช่น `/news/admin/articles`
 
 Mock mode ไม่เชื่อมฐานข้อมูล การเปลี่ยน review status จะไม่ถูกเก็บถาวร
 

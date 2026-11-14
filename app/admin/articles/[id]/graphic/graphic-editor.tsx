@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import type { Article } from '@/lib/types';
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 export default function GraphicEditor({ article, back }: { article: Article; back: string }) {
   const query = new URLSearchParams({
@@ -22,7 +23,7 @@ export default function GraphicEditor({ article, back }: { article: Article; bac
       <iframe
         className="graphic-frame"
         title="Gaming news graphic editor"
-        src={`/news/fb/index.html?${query.toString()}`}
+        src={`${BASE_PATH}/fb/index.html?${query.toString()}`}
       />
     </main>
   );
