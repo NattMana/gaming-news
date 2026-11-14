@@ -78,7 +78,7 @@ export default function ArticleDetail({
     if (!article) return;
     setBusy(true);
     try {
-      const r = await fetch(`/api/articles/${encodeURIComponent(id)}`, {
+      const r = await fetch(`${API_BASE}/api/articles/${encodeURIComponent(id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ do_status: v }),

@@ -115,7 +115,7 @@ function Review({
         setVal(next);
         setBusy(true);
         try {
-          const r = await fetch(`/api/articles/${encodeURIComponent(String(article.id))}`, {
+          const r = await fetch(`${API_BASE}/api/articles/${encodeURIComponent(String(article.id))}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ do_status: next }),
@@ -199,7 +199,7 @@ export default function ArticlesPage() {
   const load = useCallback(async (f: Filters) => {
     try {
       setError('');
-      const r = await fetch(`/api/articles?${qs(f)}`, { cache: 'no-store' });
+      const r = await fetch(`${API_BASE}/api/articles?${qs(f)}`, { cache: 'no-store' });
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || 'Unable to load articles.');
       setData(j);
