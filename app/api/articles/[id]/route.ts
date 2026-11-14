@@ -8,6 +8,25 @@ const idSchema = z
   .max(200)
   .regex(/^[\w.-]+$/);
 const bodySchema = z.object({ do_status: z.enum(REVIEW_STATUSES) }).strict();
+function normalizeOrigin(value: string | null | undefined) {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+function expectedRequestOrigin(req: NextRequest) {
+  const configured = normalizeOrigin(process.env.APP_ORIGIN);
+  if (configured) return configured;
+
+  // Behind a reverse proxy, Next's internal request URL can use http://container:port.
+  const forwardedHost = req.headers.get('x-forwarded-host')?.split(',')[0].trim();
+  const forwardedProto = req.headers.get('x-forwarded-proto')?.split(',')[0].trim();
+  const host = forwardedHost || req.headers.get('host');
+  const protocol = forwardedProto || req.nextUrl.protocol.replace(':', '');
+  return normalizeOrigin(host ? `${protocol}://${host}` : req.nextUrl.origin);
+}
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success)
@@ -27,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!idSchema.safeParse(id).success)
     return NextResponse.json({ error: 'Invalid article id.' }, { status: 400 });
   const origin = req.headers.get('origin');
-  if (origin && origin !== req.nextUrl.origin)
+  if (origin && normalizeOrigin(origin) !== expectedRequestOrigin(req))
     return NextResponse.json({ error: 'Origin check failed.' }, { status: 403 });
   let raw: unknown;
   try {

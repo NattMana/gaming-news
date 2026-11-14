@@ -132,6 +132,7 @@ ORDER BY ordinal_position;
 | `AUTH_ENABLED` | ตั้ง `false` เพื่อปิด Basic Auth เฉพาะนอก production; ค่าอื่นเปิด auth |
 | `AUTH_USER`, `AUTH_PASSWORD` | credentials สำหรับหน้า admin และ API เมื่อเปิด auth; ห้ามใช้ placeholder ในไฟล์ตัวอย่าง |
 | `DASHBOARD_HOST` | hostname ที่ label ของ Traefik ใน `compose.dashboard.yaml` ใช้ |
+| `APP_ORIGIN` | public origin ของ dashboard เช่น `https://news.example.com`; ใช้ตรวจ Origin ของ PATCH หลังผ่าน reverse proxy |
 | `DASHBOARD_BASE_PATH` | path prefix ของ dashboard; ใช้ทั้ง Next.js basePath ตอน build และ Traefik PathPrefix; ค่าเริ่มต้น `/news` |
 | `NODE_ENV`, `PORT`, `HOSTNAME` | runtime settings; กำหนดผ่าน `.env` ได้ โดยค่าเริ่มต้นใน Compose คือ `production`, `3000`, `0.0.0.0` |
 | `TRAEFIK_ENABLED`, `TRAEFIK_ENTRYPOINT`, `TRAEFIK_TLS` | ควบคุม Traefik labels; ค่าเริ่มต้นคือ `true`, `websecure`, `true` |
@@ -190,7 +191,7 @@ ORDER BY ordinal_position;
 
 `compose.dashboard.yaml` เป็น service fragment สำหรับเพิ่ม dashboard เข้า Compose stack เดิม ไม่ใช่ไฟล์แทน stack ทั้งชุด โดยใช้ `DASHBOARD_BASE_PATH` ร่วมกันระหว่าง Traefik `PathPrefix` และ Next.js `basePath`; ต้องให้ external network ตาม `DOCKER_NETWORK_NAME` มีอยู่แล้วและเชื่อมกับ Traefik/PostgreSQL ไฟล์ `.env` ใช้ทั้งส่งค่าตัวแปรเข้า container และแทนค่าตัวแปรใน Compose; ต้องวางไว้ใน Compose project directory และตั้งค่าที่จำเป็นให้ถูกต้อง หากเปลี่ยน `DASHBOARD_BASE_PATH` ต้อง build image ใหม่
 
-1. คัดลอก `.env.production.example` เป็น `.env` บน server แล้วตั้ง `DATABASE_URL`, `AUTH_USER`, `AUTH_PASSWORD`, `APP_TIME_ZONE`, `DASHBOARD_HOST`, `DB_SSL`, cert resolver และชื่อ external network ให้ตรงกับ stack จริง
+1. คัดลอก `.env.production.example` เป็น `.env` บน server แล้วตั้ง `DATABASE_URL`, `AUTH_USER`, `AUTH_PASSWORD`, `APP_TIME_ZONE`, `DASHBOARD_HOST`, `APP_ORIGIN`, `DB_SSL`, cert resolver และชื่อ external network ให้ตรงกับ stack จริง
 2. Merge เฉพาะ service `dashboard` จาก `compose.dashboard.yaml` เข้ากับ compose file เดิม ตรวจ Traefik entrypoint, TLS resolver และชื่อ network ให้ตรงกับ stack ที่ใช้อยู่
 3. สั่ง build และรันเฉพาะ dashboard:
 
