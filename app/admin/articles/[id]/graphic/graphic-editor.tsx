@@ -166,10 +166,20 @@ export default function GraphicEditor({ article, back }: { article: Article; bac
         cache: 'no-store',
       });
       const result = await response.json().catch(() => null);
-      if (!response.ok || !result?.success)
-        throw new Error(result?.error || `เผยแพร่ไม่สำเร็จ (HTTP ${response.status})`);
+      if (!response.ok || !result?.success || typeof result.postId !== 'string') {
+        const diagnostics = [
+          result?.stage ? `ขั้นตอน: ${result.stage}` : '',
+          result?.photoId ? `Photo ID: ${result.photoId}` : '',
+          result?.facebookError?.code != null ? `Facebook code: ${result.facebookError.code}` : '',
+          result?.facebookError?.error_subcode != null
+            ? `subcode: ${result.facebookError.error_subcode}`
+            : '',
+        ].filter(Boolean);
+        const message = result?.error || `เผยแพร่ไม่สำเร็จ (HTTP ${response.status})`;
+        throw new Error(`${message}${diagnostics.length ? ` · ${diagnostics.join(' · ')}` : ''}`);
+      }
       setStatus('success');
-      setPostId(typeof result.postId === 'string' ? result.postId : '');
+      setPostId(result.postId);
       try {
         sessionStorage.removeItem(previewKey);
         sessionStorage.removeItem(captionKey);
