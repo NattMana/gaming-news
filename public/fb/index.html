@@ -57,7 +57,7 @@ Dead by Daylight เตรียมถอด Chucky ออก
                 <option>Arial</option>
               </select></label
             ><label class="field"
-              >ขนาด<input id="hsize" type="number" value="39" min="18" max="64"
+              >ขนาด<input id="hsize" type="number" value="52" min="18" max="64"
             /></label>
           </div>
           <div class="row">
@@ -91,7 +91,12 @@ Dead by Daylight เตรียมถอด Chucky ออก
           <summary>แบรนด์และพื้นหลัง</summary>
           <label class="upload compact"
             >＋ อัปโหลดโลโก้<input id="logo" type="file" accept="image/*" /></label
-          ><label class="field">ลายน้ำ<input id="watermark" value="HookHuukGaming" /></label
+          ><label class="field"
+            >ปรับขนาดโลโก้<input id="logoZoom" type="range" min="80" max="140" value="100" />
+            <output id="logoZoomValue" class="range-value">100%</output></label
+          ><label class="field"
+            >สีแถบและขอบโลโก้<input id="accentColor" type="color" value="#7654e8" /></label
+          ><label class="field">ลายน้ำ<input id="watermark" value="หมาใหญ่ หมีข่าว" /></label
           ><label class="field"
             >ความทึบพื้นหลัง<input id="opacity" type="range" min="0" max="100" value="100" />
             <output id="opacityValue" class="range-value">100%</output></label

@@ -1,5 +1,15 @@
 const $ = (id) => document.getElementById(id),
-  state = { image: '', logo: '', iw: 0, ih: 0, zoom: 100, posX: 50, pos: 50 };
+  state = {
+    image: '',
+    logo: '',
+    iw: 0,
+    ih: 0,
+    zoom: 100,
+    posX: 50,
+    pos: 50,
+    logoZoom: 100,
+    logoRemoved: false,
+  };
 const params = new URLSearchParams(location.search),
   articleId = params.get('articleId'),
   draftKey = articleId ? `graphicDraft:${articleId}` : 'graphicDraft';
@@ -9,6 +19,7 @@ function update() {
   $('zoomValue').textContent = `${val('zoom')}%`;
   $('positionXValue').textContent = `${val('positionX')}%`;
   $('positionValue').textContent = `${val('position')}%`;
+  $('logoZoomValue').textContent = `${val('logoZoom')}%`;
   $('graphicPreview').classList.toggle('crop-draggable', !!state.image);
   $('graphicPreview').setAttribute(
     'aria-label',
@@ -21,6 +32,7 @@ function update() {
       JSON.stringify({
         ...state,
         fadeVersion: 2,
+        logoFitVersion: 1,
         fields: Object.fromEntries(
           [
             'headline',
@@ -34,6 +46,8 @@ function update() {
             'scolor',
             'watermark',
             'opacity',
+            'logoZoom',
+            'accentColor',
           ].map((id) => [id, val(id)]),
         ),
       }),
@@ -53,12 +67,18 @@ function imageRead(id, key) {
         if (key === 'image') {
           state.iw = im.width;
           state.ih = im.height;
+        } else if (key === 'logo') {
+          state.logoWidth = im.width;
+          state.logoHeight = im.height;
+          state.logoRemoved = false;
         }
         let c = document.createElement('canvas');
         c.width = im.naturalWidth;
         c.height = im.naturalHeight;
-        c.getContext('2d').drawImage(im, 0, 0);
+        const context = c.getContext('2d');
+        context.drawImage(im, 0, 0);
         state[key] = c.toDataURL('image/png');
+        if (key === 'logo') state.logoCrop = detectLogoBounds(context, c.width, c.height);
         update();
       };
       im.onerror = () => alert('เปิดไฟล์ภาพนี้ไม่ได้');
@@ -81,6 +101,7 @@ for (let id of [
   'scolor',
   'watermark',
   'opacity',
+  'accentColor',
 ])
   $(id).addEventListener('input', update);
 $('zoom').oninput = (e) => {
@@ -93,6 +114,10 @@ $('positionX').oninput = (e) => {
 };
 $('position').oninput = (e) => {
   state.pos = Number(e.target.value);
+  update();
+};
+$('logoZoom').oninput = (e) => {
+  state.logoZoom = Number(e.target.value);
   update();
 };
 $('resetImage').onclick = () => {
@@ -151,6 +176,7 @@ $('graphicPreview').addEventListener('pointercancel', finishImageDrag);
 $('clear').onclick = () => {
   state.image = '';
   state.logo = '';
+  state.logoRemoved = true;
   $('image').value = '';
   $('logo').value = '';
   update();
@@ -202,6 +228,123 @@ function getImagePlacement() {
     height,
   };
 }
+function detectLogoBounds(context, width, height) {
+  try {
+    const { data } = context.getImageData(0, 0, width, height);
+    const bg = [data[0], data[1], data[2], data[3]];
+    let left = width,
+      top = height,
+      right = -1,
+      bottom = -1;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        const alpha = data[i + 3];
+        const diff =
+          Math.abs(data[i] - bg[0]) +
+          Math.abs(data[i + 1] - bg[1]) +
+          Math.abs(data[i + 2] - bg[2]) +
+          Math.abs(alpha - bg[3]);
+        if (alpha > 12 && diff > 48) {
+          left = Math.min(left, x);
+          top = Math.min(top, y);
+          right = Math.max(right, x);
+          bottom = Math.max(bottom, y);
+        }
+      }
+    }
+    if (right < left || bottom < top) return { x: 0, y: 0, width, height };
+    const padding = Math.ceil(Math.max(width, height) * 0.006);
+    left = Math.max(0, left - padding);
+    top = Math.max(0, top - padding);
+    right = Math.min(width - 1, right + padding);
+    bottom = Math.min(height - 1, bottom + padding);
+    return { x: left, y: top, width: right - left + 1, height: bottom - top + 1 };
+  } catch {
+    return { x: 0, y: 0, width, height };
+  }
+}
+function setLogoFromImage(image) {
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const context = canvas.getContext('2d');
+  context.drawImage(image, 0, 0);
+  state.logo = canvas.toDataURL('image/png');
+  state.logoWidth = canvas.width;
+  state.logoHeight = canvas.height;
+  state.logoCrop = detectLogoBounds(context, canvas.width, canvas.height);
+  state.logoRemoved = false;
+  update();
+}
+function loadDefaultLogo() {
+  const logo = new Image();
+  logo.onload = () => setLogoFromImage(logo);
+  logo.onerror = () => console.error('Default brand logo failed to load.');
+  logo.src = 'brand-default.png';
+}
+function getLogoPlacement(width, height, crop) {
+  const box = {
+    x: 940 * (1 - 0.025 - 0.085),
+    y: 788 * 0.025,
+    w: 940 * 0.085,
+    h: 940 * 0.085,
+  };
+  const source = crop || { x: 0, y: 0, width, height };
+  const scale =
+    Math.min(box.w / source.width, box.h / source.height) * (Number($('logoZoom').value) / 100);
+  const imageW = width * scale;
+  const imageH = height * scale;
+  return {
+    ...box,
+    imageX: box.x + box.w / 2 - (source.x + source.width / 2) * scale,
+    imageY: box.y + box.h / 2 - (source.y + source.height / 2) * scale,
+    imageW,
+    imageH,
+  };
+}
+async function renderLogoBadge(size = 800) {
+  const logo = await loadGraphicImage(state.logo);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = 'rgba(255,255,255,.87)';
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  ctx.fill();
+  const crop = state.logoCrop || {
+    x: 0,
+    y: 0,
+    width: logo.naturalWidth,
+    height: logo.naturalHeight,
+  };
+  const scale = Math.min(size / crop.width, size / crop.height) * (Number($('logoZoom').value) / 100);
+  const width = crop.width * scale;
+  const height = crop.height * scale;
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(
+    logo,
+    crop.x,
+    crop.y,
+    crop.width,
+    crop.height,
+    (size - width) / 2,
+    (size - height) / 2,
+    width,
+    height,
+  );
+  ctx.restore();
+  ctx.strokeStyle = $('accentColor').value;
+  ctx.lineWidth = size * 0.1;
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+  ctx.stroke();
+  return canvas.toDataURL('image/png');
+}
 async function drawGraphicCanvas() {
   await document.fonts.ready;
   const canvas = document.createElement('canvas');
@@ -236,19 +379,23 @@ async function drawGraphicCanvas() {
 
   if (state.logo) {
     const logo = await loadGraphicImage(state.logo);
-    const box = { x: 940 * (1 - 0.025 - 0.085), y: 788 * 0.025, w: 940 * 0.085, h: 940 * 0.085 };
-    ctx.fillStyle = 'rgba(255,255,255,.87)';
-    ctx.beginPath();
-    ctx.arc(box.x + box.w / 2, box.y + box.h / 2, box.w / 2, 0, Math.PI * 2);
-    ctx.fill();
-    const scale = Math.min(box.w / logo.naturalWidth, box.h / logo.naturalHeight);
-    const w = logo.naturalWidth * scale,
-      h = logo.naturalHeight * scale;
+    const box = getLogoPlacement(
+      logo.naturalWidth,
+      logo.naturalHeight,
+      state.logoCrop || { x: 0, y: 0, width: logo.naturalWidth, height: logo.naturalHeight },
+    );
     ctx.save();
     ctx.beginPath();
     ctx.arc(box.x + box.w / 2, box.y + box.h / 2, box.w / 2, 0, Math.PI * 2);
     ctx.clip();
-    ctx.drawImage(logo, box.x + (box.w - w) / 2, box.y + (box.h - h) / 2, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,.87)';
+    ctx.fill();
+    ctx.drawImage(logo, box.imageX, box.imageY, box.imageW, box.imageH);
+    ctx.strokeStyle = $('accentColor').value;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(box.x + box.w / 2, box.y + box.h / 2, box.w / 2, 0, Math.PI * 2);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -308,7 +455,7 @@ async function drawGraphicCanvas() {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#9291a9';
   ctx.fillText($('watermark').value, 940 * (1 - 0.025), 773);
-  ctx.fillStyle = '#7654e8';
+  ctx.fillStyle = $('accentColor').value;
   ctx.fillRect(0, 780, 940, 8);
   return canvas;
 }
@@ -390,12 +537,32 @@ function svgSource() {
   >
     ${image}
     <path d="M20 170V20h150" fill="none" stroke="white" stroke-width="4" />
-    ${state.logo ? `<image href="${state.logo}" x="840" y="20" width="80" height="80" preserveAspectRatio="xMidYMid meet" />` : ''}
+    ${state.logo ? (() => {
+      const box = {
+        x: 940 * (1 - 0.025 - 0.085),
+        y: 788 * 0.025,
+        w: 940 * 0.085,
+        h: 940 * 0.085,
+      };
+      const cx = box.x + box.w / 2,
+        cy = box.y + box.h / 2;
+      const crop = state.logoCrop || {
+        x: 0,
+        y: 0,
+        width: state.logoWidth || 900,
+        height: state.logoHeight || 900,
+      };
+      const scale =
+        Math.min(box.w / crop.width, box.h / crop.height) * (Number($('logoZoom').value) / 100);
+      const x = cx - (crop.x + crop.width / 2) * scale;
+      const y = cy - (crop.y + crop.height / 2) * scale;
+      return `<defs><clipPath id="logoClip"><circle cx="${cx}" cy="${cy}" r="${box.w / 2}" /></clipPath></defs><circle cx="${cx}" cy="${cy}" r="${box.w / 2}" fill="white" fill-opacity=".87" stroke="${$('accentColor').value}" stroke-width="4" /><g clip-path="url(#logoClip)"><image href="${state.logo}" x="${x}" y="${y}" width="${(state.logoWidth || 900) * scale}" height="${(state.logoHeight || 900) * scale}" preserveAspectRatio="none" /></g>`;
+    })() : ''}
     <rect y="520" width="940" height="268" fill="#fff" fill-opacity="${$('opacity').value / 100}" />
     ${tx($('headline').value, hy - 20, hs, $('hfont').value, $('hcolor').value, $('stroke').value)}
     ${tx($('subtitle').value, sy, ss, $('sfont').value, $('scolor').value)}
     <text x="916" y="770" text-anchor="end" font-family="Prompt, sans-serif" font-size="14" fill="#9291a9">${esc($('watermark').value)}</text>
-    <rect y="780" width="940" height="8" fill="#7654e8" />
+    <rect y="780" width="940" height="8" fill="${$('accentColor').value}" />
   </svg>`;
 }
 function download(blob, name) {
@@ -652,21 +819,7 @@ $('pptx').onclick = async () => {
     });
 
     if (state.logo) {
-      const logo = await loadGraphicImage(state.logo);
-      slide.addShape(pptx.ShapeType.ellipse, {
-        x: 8.4,
-        y: 0.2,
-        w: 0.8,
-        h: 0.8,
-        fill: { color: 'FFFFFF', transparency: 13 },
-        line: { color: 'FFFFFF', transparency: 100 },
-      });
-      const maxW = 0.72,
-        maxH = 0.72;
-      const scale = Math.min(maxW / (logo.naturalWidth / 100), maxH / (logo.naturalHeight / 100));
-      const w = (logo.naturalWidth / 100) * scale,
-        h = (logo.naturalHeight / 100) * scale;
-      slide.addImage({ data: state.logo, x: 8.8 - w / 2, y: 0.6 - h / 2, w, h });
+      slide.addImage({ data: await renderLogoBadge(), x: 8.366, y: 0.197, w: 0.8, h: 0.8 });
     }
 
     slide.addShape(pptx.ShapeType.rect, {
@@ -742,8 +895,8 @@ $('pptx').onclick = async () => {
       y: 7.8,
       w: 9.4,
       h: 0.08,
-      fill: { color: '7654E8' },
-      line: { color: '7654E8', transparency: 100 },
+      fill: { color: $('accentColor').value.replace('#', '') },
+      line: { color: $('accentColor').value.replace('#', ''), transparency: 100 },
     });
     await pptx.writeFile({ fileName: 'gaming-news-graphic.pptx' });
   } catch (e) {
@@ -754,17 +907,22 @@ $('pptx').onclick = async () => {
 try {
   let d = JSON.parse(localStorage.getItem(draftKey) || 'null');
   if (d) {
+    if (d.fields?.watermark === 'HookHuukGaming') d.fields.watermark = 'หมาใหญ่ หมีข่าว';
     if (!d.fadeVersion && d.fields?.opacity === '88') {
       d.fields.opacity = '100';
       d.fadeVersion = 2;
       localStorage.setItem(draftKey, JSON.stringify(d));
     }
     Object.assign(state, d);
+    if (d.logoFitVersion !== 1) state.logoZoom = 100;
     if (state.posX == null) state.posX = 50;
     $('zoom').value = String(state.zoom || 100);
     $('positionX').value = String(state.posX);
     $('position').value = String(state.pos ?? 50);
+    $('logoZoom').value = String(state.logoZoom || 100);
     for (let [k, v] of Object.entries(d.fields || {})) if ($(k)) $(k).value = v;
+    if (d.logoFitVersion !== 1) $('logoZoom').value = '100';
+    state.logoZoom = Number($('logoZoom').value);
     if (state.image) {
       let im = new Image();
       im.onload = () => {
@@ -774,11 +932,27 @@ try {
       };
       im.src = state.image;
     }
+    if (state.logo) {
+      let logo = new Image();
+      logo.onload = () => {
+        state.logoWidth = logo.width;
+        state.logoHeight = logo.height;
+        const canvas = document.createElement('canvas');
+        canvas.width = logo.naturalWidth;
+        canvas.height = logo.naturalHeight;
+        const context = canvas.getContext('2d');
+        context.drawImage(logo, 0, 0);
+        state.logoCrop = detectLogoBounds(context, canvas.width, canvas.height);
+        update();
+      };
+      logo.src = state.logo;
+    } else if (!state.logoRemoved) loadDefaultLogo();
   } else {
     const headline = params.get('headline'),
       subtitle = params.get('subtitle');
     if (headline !== null) $('headline').value = headline;
     if (subtitle !== null) $('subtitle').value = subtitle;
+    loadDefaultLogo();
   }
 } catch {}
 update();
