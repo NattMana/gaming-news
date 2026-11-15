@@ -6,8 +6,8 @@
 
 - **หน้า Articles** แสดงข่าว ค้นหาด้วยชื่อหรือ URL กรองตามสถานะ/วันที่ เรียงข้อมูล และแบ่งหน้า
 - **ปุ่ม View** เปิดรายละเอียดของข่าวและฟิลด์ต้นทาง
-- **คลิกชื่อ Article** เปิด Graphic Studio สำหรับปรับภาพและข้อความ แล้วดาวน์โหลด PNG, SVG หรือ PPTX
-- **API** ทำหน้าที่อ่านรายการ/รายละเอียด/ตัวเลือกตัวกรอง และอัปเดต `do_status` เท่านั้น
+- **คลิกชื่อ Article** เปิด Graphic Studio สำหรับปรับภาพและข้อความ ดาวน์โหลด PNG, SVG หรือ PPTX และเตรียมโพสต์ Facebook ผ่านหน้าพรีวิว/ยืนยัน
+- **API** อ่านข้อมูลข่าวและอัปเดต `do_status`; endpoint Facebook รับ PNG กับ caption ที่ผู้ใช้ยืนยัน โดยไม่เขียนทับ summary ต้นฉบับ
 - **โหมด mock** ใช้ fixture ใน `lib/data/mock-articles.ts` ไม่ต้องมี PostgreSQL; การเปลี่ยน review status อยู่ในหน่วยความจำและหายเมื่อรีสตาร์ต
 - **โหมด postgres** อ่านตาราง `articles` ที่มีอยู่ ไม่สร้างตาราง, migration, seed หรือข้อมูลข่าวให้เอง
 - รูปและ draft ใน Graphic Studio เก็บใน browser `localStorage`; ไม่ได้อัปโหลดเข้า database
@@ -133,6 +133,10 @@ ORDER BY ordinal_position;
 | `AUTH_USER`, `AUTH_PASSWORD` | credentials สำหรับหน้า admin และ API เมื่อเปิด auth; ห้ามใช้ placeholder ในไฟล์ตัวอย่าง |
 | `DASHBOARD_HOST` | hostname ที่ label ของ Traefik ใน `compose.dashboard.yaml` ใช้ |
 | `APP_ORIGIN` | public origin ของ dashboard เช่น `https://news.example.com`; ใช้ตรวจ Origin ของ PATCH หลังผ่าน reverse proxy |
+| `META_APP_ID`, `META_APP_SECRET` | ข้อมูล Meta App เก็บฝั่ง server เท่านั้น; ห้ามใช้ prefix `NEXT_PUBLIC_` |
+| `FACEBOOK_PAGE_ID` | ID ของ Facebook Page ที่จะเผยแพร่ |
+| `FACEBOOK_PAGE_ACCESS_TOKEN` | Page Access Token ที่มี permission `pages_manage_posts`; ใช้เฉพาะฝั่ง server |
+| `FACEBOOK_GRAPH_API_VERSION` | เวอร์ชัน Graph API; ค่าเริ่มต้น `v27.0` |
 | `DASHBOARD_BASE_PATH` | path prefix ของ dashboard; ใช้ทั้ง Next.js basePath ตอน build และ Traefik PathPrefix; ค่าเริ่มต้น `/news` |
 | `NODE_ENV`, `PORT`, `HOSTNAME` | runtime settings; กำหนดผ่าน `.env` ได้ โดยค่าเริ่มต้นใน Compose คือ `production`, `3000`, `0.0.0.0` |
 | `TRAEFIK_ENABLED`, `TRAEFIK_ENTRYPOINT`, `TRAEFIK_TLS` | ควบคุม Traefik labels; ค่าเริ่มต้นคือ `true`, `websecure`, `true` |
@@ -150,7 +154,7 @@ ORDER BY ordinal_position;
 | `/` | เปลี่ยนเส้นทางไป `/admin/articles` |
 | `/admin/articles` | รายการข่าว ค้นหา กรอง เรียง และเปลี่ยน review status |
 | `/admin/articles/[id]` | รายละเอียดข่าวทั้งหมด; เข้าผ่านปุ่ม View |
-| `/admin/articles/[id]/graphic` | Graphic Studio ของข่าว; เข้าผ่านชื่อ Article |
+| `/admin/articles/[id]/graphic` | Graphic Studio ของข่าว; มีหน้าพรีวิวและแก้ caption ก่อนยืนยันโพสต์ Facebook โดย PNG พักอยู่ใน memory ของ browser |
 | `/fb/index.html` | ตัว editor แบบ standalone ที่ฝังในหน้า Graphic Studio |
 
 ## API
@@ -164,6 +168,9 @@ ORDER BY ordinal_position;
 | `GET` | `/api/articles/{id}` | อ่านรายละเอียดข่าวหนึ่งรายการ |
 | `PATCH` | `/api/articles/{id}` | เปลี่ยน `do_status` ของข่าว; body `{"do_status":"undone"}` (รองรับ `done`, `skip` ด้วย) |
 | `GET` | `/api/config` | ค่า config ที่ client ใช้ เช่น `{"timeZone":"Asia/Bangkok"}` |
+| `POST` | `/api/facebook/publish` | รับ multipart `articleId`, PNG `image` และ caption ที่แก้ไข แล้วโพสต์เป็น photo post เดียวไปยัง Facebook Page |
+
+Caption ในหน้าพรีวิวเริ่มจาก `ai_full_summary`; API ตรวจว่า article มีอยู่ แล้วส่ง caption ที่ผู้ใช้ยืนยันตามเดิม ไม่บันทึกทับ summary ใน PostgreSQL
 
 `GET /api/articles` รับ query parameters:
 
@@ -191,7 +198,7 @@ ORDER BY ordinal_position;
 
 `compose.dashboard.yaml` เป็น service fragment สำหรับเพิ่ม dashboard เข้า Compose stack เดิม ไม่ใช่ไฟล์แทน stack ทั้งชุด โดยใช้ `DASHBOARD_BASE_PATH` ร่วมกันระหว่าง Traefik `PathPrefix` และ Next.js `basePath`; ต้องให้ external network ตาม `DOCKER_NETWORK_NAME` มีอยู่แล้วและเชื่อมกับ Traefik/PostgreSQL ไฟล์ `.env` ใช้ทั้งส่งค่าตัวแปรเข้า container และแทนค่าตัวแปรใน Compose; ต้องวางไว้ใน Compose project directory และตั้งค่าที่จำเป็นให้ถูกต้อง หากเปลี่ยน `DASHBOARD_BASE_PATH` ต้อง build image ใหม่
 
-1. คัดลอก `.env.production.example` เป็น `.env` บน server แล้วตั้ง `DATABASE_URL`, `AUTH_USER`, `AUTH_PASSWORD`, `APP_TIME_ZONE`, `DASHBOARD_HOST`, `APP_ORIGIN`, `DB_SSL`, cert resolver และชื่อ external network ให้ตรงกับ stack จริง
+1. คัดลอก `.env.production.example` เป็น `.env` บน server แล้วตั้ง `DATABASE_URL`, `AUTH_USER`, `AUTH_PASSWORD`, `APP_TIME_ZONE`, `DASHBOARD_HOST`, `APP_ORIGIN`, Facebook App/Page credentials, `DB_SSL`, cert resolver และชื่อ external network ให้ตรงกับ stack จริง
 2. Merge เฉพาะ service `dashboard` จาก `compose.dashboard.yaml` เข้ากับ compose file เดิม ตรวจ Traefik entrypoint, TLS resolver และชื่อ network ให้ตรงกับ stack ที่ใช้อยู่
 3. สั่ง build และรันเฉพาะ dashboard:
 

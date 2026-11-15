@@ -904,6 +904,43 @@ $('pptx').onclick = async () => {
     alert('ส่งออก PPTX ไม่สำเร็จ: ' + (e instanceof Error ? e.message : String(e)));
   }
 };
+window.addEventListener('message', async (event) => {
+  if (window.parent === window || event.source !== window.parent) return;
+  if (event.origin !== window.location.origin) return;
+  const message = event.data;
+  if (
+    !message ||
+    message.type !== 'EXPORT_GRAPHIC_PNG' ||
+    typeof message.requestId !== 'string' ||
+    message.requestId.length > 120
+  )
+    return;
+
+  const reply = (payload) => window.parent.postMessage(payload, event.origin);
+  try {
+    const canvas = await drawGraphicCanvas();
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reply({
+            type: 'GRAPHIC_PNG_EXPORT_ERROR',
+            requestId: message.requestId,
+            error: 'สร้างไฟล์ PNG ไม่สำเร็จ กรุณาลองอีกครั้ง',
+          });
+          return;
+        }
+        reply({ type: 'GRAPHIC_PNG_EXPORTED', requestId: message.requestId, blob });
+      },
+      'image/png',
+    );
+  } catch (error) {
+    reply({
+      type: 'GRAPHIC_PNG_EXPORT_ERROR',
+      requestId: message.requestId,
+      error: error instanceof Error ? error.message : 'Export PNG ไม่สำเร็จ',
+    });
+  }
+});
 try {
   let d = JSON.parse(localStorage.getItem(draftKey) || 'null');
   if (d) {
